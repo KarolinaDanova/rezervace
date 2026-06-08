@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rezervace termínu</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1814;
+    --muted: #6b6760;
+    --line: #e4e1da;
+    --bg: #f9f7f3;
+    --white: #ffffff;
+    --accent: #c0522a;
+    --accent-light: #fdf1ec;
+    --success: #2d6a4f;
+    --success-light: #edf7f2;
+    --taken: #e8e4de;
+    --taken-text: #9a9590;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 40px 16px 80px;
+  }
+
+  header {
+    max-width: 600px;
+    margin: 0 auto 48px;
+    text-align: center;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    line-height: 1.15;
+  }
+
+  header p {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 300;
+  }
+
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 32px;
+  }
+
+  .card-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    margin-bottom: 20px;
+    color: var(--ink);
+  }
+
+  /* Slots grid */
+  .slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+  }
+
+  .slot {
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+  }
+
+  .slot:not(.taken):not(.selected):hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .slot.selected {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .slot.taken {
+    background: var(--taken);
+    color: var(--taken-text);
+    cursor: not-allowed;
+    border-color: var(--taken);
+  }
+
+  .slot .slot-time {
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  .slot .slot-status {
+    font-size: 0.75rem;
+    margin-top: 3px;
+    color: var(--muted);
+  }
+
+  .slot.taken .slot-status { color: var(--taken-text); }
+  .slot.selected .slot-status { color: var(--accent); }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    border: 1.5px solid var(--line);
+  }
+
+  .legend-dot.free { background: var(--white); }
+  .legend-dot.taken { background: var(--taken); border-color: var(--taken); }
+  .legend-dot.selected { background: var(--accent-light); border-color: var(--accent); }
+
+  /* Form */
+  .form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  input, textarea, select {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    color: var(--ink);
+    background: var(--white);
+    transition: border-color 0.15s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  textarea { resize: vertical; min-height: 80px; }
+
+  .selected-slot-display {
+    background: var(--accent-light);
+    border: 1.5px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .selected-slot-display.empty {
+    background: var(--bg);
+    border-color: var(--line);
+    color: var(--taken-text);
+    font-weight: 400;
+  }
+
+  .btn {
+    width: 100%;
+    background: var(--ink);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius);
+    padding: 15px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+
+  .btn:hover { background: #333; }
+  .btn:active { transform: scale(0.99); }
+  .btn:disabled { background: var(--line); color: var(--taken-text); cursor: not-allowed; transform: none; }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--ink);
+    color: var(--white);
+    padding: 14px 24px;
+    border-radius: 40px;
+    font-size: 0.9rem;
+    font-weight: 400;
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+    z-index: 100;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { background: var(--success); }
+  #toast.error { background: #b53a2a; }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Setup notice */
+  .setup-notice {
+    background: #fffbeb;
+    border: 1.5px solid #f5d76e;
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: #7a5c00;
+  }
+
+  .setup-notice strong { color: #5a4200; }
+  .setup-notice code {
+    background: rgba(0,0,0,0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.82rem;
+  }
+
+  .setup-notice a { color: #7a5c00; }
+
+  /* Demo mode badge */
+  .demo-badge {
+    display: inline-block;
+    background: #fffbeb;
+    border: 1px solid #f5d76e;
+    color: #7a5c00;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Rezervace termínu</h1>
+  <p>Vyberte volný termín a vyplňte kontaktní údaje</p>
+</header>
+
+<div class="container">
+
+  <!-- Setup notice -->
+  <div class="setup-notice" id="setup-notice">
+    <strong>⚙️ Před spuštěním: připoj Supabase databázi</strong><br>
+    Najdi v kódu sekci <code>KONFIGURACE</code> a doplň:
+    <ul style="margin: 8px 0 0 18px;">
+      <li><code>SUPABASE_URL</code> — z Supabase projektu → Settings → API</li>
+      <li><code>SUPABASE_ANON_KEY</code> — tamtéž</li>
+    </ul>
+    <a href="https://supabase.com" target="_blank">→ Zaregistruj se zdarma na supabase.com</a>
+    <br><br>
+    SQL pro vytvoření tabulky (Supabase → SQL Editor):<br>
+    <code>
+      CREATE TABLE rezervace (<br>
+      &nbsp;&nbsp;id SERIAL PRIMARY KEY,<br>
+      &nbsp;&nbsp;termin TEXT NOT NULL,<br>
+      &nbsp;&nbsp;jmeno TEXT NOT NULL,<br>
+      &nbsp;&nbsp;email TEXT NOT NULL,<br>
+      &nbsp;&nbsp;telefon TEXT,<br>
+      &nbsp;&nbsp;poznamka TEXT,<br>
+      &nbsp;&nbsp;created_at TIMESTAMPTZ DEFAULT NOW()<br>
+      );
+    </code>
+  </div>
+
+  <!-- Termíny -->
+  <div class="card">
+    <div class="demo-badge">Demo: termíny jsou jen ukázkové</div>
+    <div class="card-title">Dostupné termíny</div>
+    <div class="slots-grid" id="slots-grid">
+      <div style="color: var(--muted); font-size: 0.9rem;">Načítám termíny…</div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot free"></div> Volný</div>
+      <div class="legend-item"><div class="legend-dot taken"></div> Obsazený</div>
+      <div class="legend-item"><div class="legend-dot selected"></div> Vybraný</div>
+    </div>
+  </div>
+
+  <!-- Formulář -->
+  <div class="card">
+    <div class="card-title">Vaše údaje</div>
+    <div class="form-grid">
+      <div>
+        <label>Vybraný termín</label>
+        <div class="selected-slot-display empty" id="selected-display">
+          Nejprve vyberte termín výše
+        </div>
+      </div>
+      <div>
+        <label>Jméno a příjmení *</label>
+        <input type="text" id="jmeno" placeholder="Jan Novák" autocomplete="name">
+      </div>
+      <div>
+        <label>E-mail *</label>
+        <input type="email" id="email" placeholder="jan@email.cz" autocomplete="email">
+      </div>
+      <div>
+        <label>Telefon</label>
+        <input type="tel" id="telefon" placeholder="+420 777 123 456" autocomplete="tel">
+      </div>
+      <div>
+        <label>Poznámka</label>
+        <textarea id="poznamka" placeholder="Případné dotazy nebo informace…"></textarea>
+      </div>
+      <button class="btn" id="submit-btn" disabled onclick="odeslat()">
+        Potvrdit rezervaci
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // =========================================================
+  // KONFIGURACE — vyplň své Supabase údaje
+  // =========================================================
+  const SUPABASE_URL = 'https://pyqffievxyeobpegqjkc.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5cWZmaWV2eHllb2JwZWdxamtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MzE1MTMsImV4cCI6MjA5NjUwNzUxM30.qa42iFewpboKs8sIsDHaANrhpkD6uQVySB5_JWxJWvw';
+  // =========================================================
+
+  // Definice termínů (uprav dle potřeby)
+  const TERMINY = [
+    { datum: 'Po 9. 6.', cas: '09:00' },
+    { datum: 'Po 9. 6.', cas: '10:30' },
+    { datum: 'Po 9. 6.', cas: '14:00' },
+    { datum: 'Út 10. 6.', cas: '09:00' },
+    { datum: 'Út 10. 6.', cas: '11:00' },
+    { datum: 'Út 10. 6.', cas: '15:30' },
+    { datum: 'St 11. 6.', cas: '10:00' },
+    { datum: 'St 11. 6.', cas: '13:00' },
+    { datum: 'Čt 12. 6.', cas: '09:00' },
+    { datum: 'Čt 12. 6.', cas: '11:00' },
+    { datum: 'Čt 12. 6.', cas: '14:00' },
+    { datum: 'Pá 13. 6.', cas: '09:30' },
+  ];
+
+  let vybranyTermin = null;
+  let obsazeneTerminy = [];
+  const jeDemo = SUPABASE_URL.includes('TVUJ-PROJEKT');
+
+  async function nacistObsazene() {
+    if (jeDemo) {
+      // Demo: simuluj pár obsazených
+      obsazeneTerminy = ['Po 9. 6. 10:30', 'Út 10. 6. 15:30', 'Čt 12. 6. 11:00'];
+      vykresliTerminy();
+      return;
+    }
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/rezervace?select=termin`,
+        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+      );
+      const data = await res.json();
+      obsazeneTerminy = data.map(r => r.termin);
+    } catch(e) {
+      toast('Nepodařilo se načíst termíny', 'error');
+    }
+    vykresliTerminy();
+  }
+
+  function vykresliTerminy() {
+    const grid = document.getElementById('slots-grid');
+    grid.innerHTML = '';
+    TERMINY.forEach(t => {
+      const klic = `${t.datum} ${t.cas}`;
+      const obsazeno = obsazeneTerminy.includes(klic);
+      const vybrano = vybranyTermin === klic;
+      const el = document.createElement('div');
+      el.className = 'slot' + (obsazeno ? ' taken' : '') + (vybrano ? ' selected' : '');
+      el.innerHTML = `
+        <div class="slot-time">${t.cas}</div>
+        <div class="slot-status">${t.datum}<br>${obsazeno ? 'Obsazeno' : (vybrano ? '✓ Vybráno' : 'Volný')}</div>
+      `;
+      if (!obsazeno) el.onclick = () => vybratTermin(klic);
+      grid.appendChild(el);
+    });
+  }
+
+  function vybratTermin(klic) {
+    vybranyTermin = klic;
+    const display = document.getElementById('selected-display');
+    display.textContent = klic;
+    display.classList.remove('empty');
+    document.getElementById('submit-btn').disabled = false;
+    vykresliTerminy();
+  }
+
+  async function odeslat() {
+    const jmeno = document.getElementById('jmeno').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const telefon = document.getElementById('telefon').value.trim();
+    const poznamka = document.getElementById('poznamka').value.trim();
+
+    if (!vybranyTermin) return toast('Vyberte prosím termín', 'error');
+    if (!jmeno) return toast('Vyplňte prosím jméno', 'error');
+    if (!email || !email.includes('@')) return toast('Vyplňte platný e-mail', 'error');
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Odesílám…';
+
+    if (jeDemo) {
+      await new Promise(r => setTimeout(r, 1000));
+      obsazeneTerminy.push(vybranyTermin);
+      toast('Demo: rezervace by byla uložena! 🎉', 'success');
+      resetFormular();
+      btn.disabled = false;
+      btn.innerHTML = 'Potvrdit rezervaci';
+      return;
+    }
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rezervace`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ termin: vybranyTermin, jmeno, email, telefon, poznamka })
+      });
+
+      if (res.ok) {
+        obsazeneTerminy.push(vybranyTermin);
+        toast('Rezervace byla úspěšně odeslána! 🎉', 'success');
+        resetFormular();
+      } else {
+        const err = await res.json();
+        if (err.code === '23505') {
+          toast('Tento termín byl právě obsazen, vyberte jiný', 'error');
+          await nacistObsazene();
+        } else {
+          toast('Chyba při odesílání, zkuste znovu', 'error');
+        }
+      }
+    } catch(e) {
+      toast('Nepodařilo se připojit k databázi', 'error');
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = 'Potvrdit rezervaci';
+  }
+
+  function resetFormular() {
+    vybranyTermin = null;
+    document.getElementById('jmeno').value = '';
+    document.getElementById('email').value = '';
+    document.getElementById('telefon').value = '';
+    document.getElementById('poznamka').value = '';
+    document.getElementById('selected-display').textContent = 'Nejprve vyberte termín výše';
+    document.getElementById('selected-display').classList.add('empty');
+    document.getElementById('submit-btn').disabled = true;
+    vykresliTerminy();
+  }
+
+  function toast(msg, typ = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + typ;
+    setTimeout(() => el.className = typ, 3000);
+  }
+
+  // Skryj setup notice pokud je Supabase nakonfigurován
+  if (!jeDemo) {
+    document.getElementById('setup-notice').style.display = 'none';
+  }
+
+  nacistObsazene();
+</script>
+</body>
+</html>
